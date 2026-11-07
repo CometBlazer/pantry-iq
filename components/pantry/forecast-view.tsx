@@ -94,7 +94,7 @@ export function ForecastView({ state }: { state: PantryState }) {
             />
             <span className="w-16 text-sm tabular-nums">{horizon} days</span>
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-body-sm text-mute">
             Projected waste over this period:{" "}
             <span className="font-semibold text-foreground">{formatPence(totalWaste)}</span>
           </div>
@@ -146,7 +146,7 @@ export function ForecastView({ state }: { state: PantryState }) {
                       formatter={(v) => (
                         <span>
                           In stock{" "}
-                          <span className="font-mono font-medium tabular-nums">
+                          <span className="font-semibold tabular-nums text-ink">
                             {product ? formatQty(Number(v), product.unit) : String(v)}
                           </span>
                         </span>
@@ -157,9 +157,9 @@ export function ForecastView({ state }: { state: PantryState }) {
                 {sim?.runOutDay != null && (
                   <ReferenceLine
                     x={formatDay(sim.runOutDay)}
-                    stroke="var(--destructive)"
+                    stroke="var(--color-error)"
                     strokeDasharray="4 4"
-                    label={{ value: "Runs out", position: "insideTopRight", fill: "var(--muted-foreground)", fontSize: 11 }}
+                    label={{ value: "Runs out", position: "insideTopRight", fill: "var(--color-mute)", fontSize: 11 }}
                   />
                 )}
                 <Area
@@ -189,13 +189,13 @@ export function ForecastView({ state }: { state: PantryState }) {
                 <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                 <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => `£${v.toFixed(2)}`} />
                 <ChartTooltip
-                  cursor={{ fill: "var(--muted)", opacity: 0.6 }}
+                  cursor={{ fill: "var(--color-secondary-bg)", opacity: 0.6 }}
                   content={
                     <ChartTooltipContent
                       formatter={(v) => (
                         <span>
                           Expiring{" "}
-                          <span className="font-mono font-medium tabular-nums">£{Number(v).toFixed(2)}</span>
+                          <span className="font-semibold tabular-nums text-ink">£{Number(v).toFixed(2)}</span>
                         </span>
                       )}
                     />
@@ -215,23 +215,23 @@ export function ForecastView({ state }: { state: PantryState }) {
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing runs out or expires in this window.</p>
+            <p className="text-body-sm text-mute">Nothing runs out or expires in this window.</p>
           ) : (
-            <ol className="relative space-y-3 border-l pl-5">
+            <ol className="relative space-y-3 border-l border-hairline pl-5">
               {events.slice(0, 40).map((e, i) => (
                 <li key={i} className="relative">
-                  <span className="absolute -left-[27px] top-0.5 flex size-3.5 items-center justify-center rounded-full bg-background">
+                  <span className="absolute -left-[27px] top-0.5 flex size-3.5 items-center justify-center rounded-full bg-card">
                     {e.kind === "runout" ? (
-                      <PackageX className="size-3.5 text-destructive" />
+                      <PackageX className="size-3.5 text-error" />
                     ) : (
-                      <AlertTriangle className="size-3.5 text-orange-500" />
+                      <AlertTriangle className="size-3.5 text-accent-purple" />
                     )}
                   </span>
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="w-24 shrink-0 text-xs text-muted-foreground tabular-nums">
+                    <span className="w-24 shrink-0 text-xs text-mute tabular-nums">
                       {e.day === today ? "Today" : formatDay(e.day)}
                     </span>
-                    <span className="font-medium">{PRODUCTS_BY_ID[e.productId].name}</span>
+                    <span className="font-semibold text-ink">{PRODUCTS_BY_ID[e.productId].name}</span>
                     <Badge variant="outline" className="font-normal">
                       {e.detail}
                     </Badge>

@@ -4,11 +4,74 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Design tokens (DESIGN.md). One saturated accent (red) reserved for the primary CTA,
+ * active-tab indicator and wordmark; everything else is warm-cream / monochrome chrome.
+ * Shape vocabulary: 16px (md) · 32px (lg) · pill. No card shadows.
+ */
+@theme {
+  /* Raw design tokens, usable as Tailwind colors: bg-surface-card, text-mute, … */
+  --color-canvas: #ffffff;
+  --color-surface-soft: #fbfbf9;
+  --color-surface-card: #f6f6f3;
+  --color-secondary-bg: #e5e5e0;
+  --color-secondary-pressed: #c8c8c1;
+  --color-surface-dark: #262622;
+  --color-hairline: #dadad3;
+  --color-hairline-soft: #e5e5e0;
+  --color-ink: #000000;
+  --color-ink-soft: #211922;
+  --color-body: #33332e;
+  --color-charcoal: #262622;
+  --color-mute: #62625b;
+  --color-ash: #91918c;
+  --color-stone: #c8c8c1;
+  --color-on-dark: #ffffff;
+  --color-primary-pressed: #cc001f;
+  --color-error: #9e0a0a;
+  --color-success-deep: #103c25;
+  --color-success-pale: #c7f0da;
+  --color-focus-outer: #435ee5;
+  --color-accent-blue: #617bff;
+  --color-accent-purple: #7e238b;
+  --color-accent-purple-deep: #6845ab;
+
+  /* Typography scale */
+  --text-display-xl: 70px;
+  --text-display-xl--line-height: 1.1;
+  --text-display-xl--letter-spacing: -1.2px;
+  --text-display-xl--font-weight: 600;
+  --text-display-lg: 44px;
+  --text-display-lg--line-height: 1.15;
+  --text-display-lg--letter-spacing: -0.8px;
+  --text-display-lg--font-weight: 700;
+  --text-heading-xl: 28px;
+  --text-heading-xl--line-height: 1.2;
+  --text-heading-xl--letter-spacing: -1.2px;
+  --text-heading-xl--font-weight: 700;
+  --text-heading-lg: 22px;
+  --text-heading-lg--line-height: 1.25;
+  --text-heading-lg--font-weight: 600;
+  --text-heading-md: 18px;
+  --text-heading-md--line-height: 1.3;
+  --text-heading-md--font-weight: 600;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 1.4;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.4;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+
+  /* Spacing */
+  --spacing-section: 64px;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  /* No monospace in the system: anything asking for mono gets the sans face */
+  --font-mono: var(--font-sans);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -39,82 +102,85 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Three radii only: 16px for components, 32px for large cards, pill for circular */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 16px;
+  --radius-xl: 16px;
+  --radius-2xl: 32px;
+  --radius-3xl: 32px;
+  --radius-4xl: 9999px;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.52 0.13 155);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.55 0.14 155);
-  --chart-2: oklch(0.6 0.15 250);
-  --chart-3: oklch(0.72 0.15 70);
-  --chart-4: oklch(0.6 0.2 25);
-  --chart-5: oklch(0.55 0.15 300);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #f6f6f3;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #e60023;
+  --primary-foreground: #ffffff;
+  --secondary: #e5e5e0;
+  --secondary-foreground: #000000;
+  --muted: #f6f6f3;
+  --muted-foreground: #62625b;
+  --accent: #e5e5e0;
+  --accent-foreground: #000000;
+  --destructive: #9e0a0a;
+  --border: #dadad3;
+  --input: #91918c;
+  --ring: #435ee5;
+  /* Charts stay monochrome + editorial accents: red is reserved for CTAs */
+  --chart-1: #262622;
+  --chart-2: #617bff;
+  --chart-3: #7e238b;
+  --chart-4: #9e0a0a;
+  --chart-5: #91918c;
+  --radius: 16px;
+  --sidebar: #fbfbf9;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #e60023;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f6f6f3;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #dadad3;
+  --sidebar-ring: #435ee5;
 }
 
+/* The design system defines no dark theme; this warm-dark variant keeps the same roles. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.7 0.15 155);
-  --primary-foreground: oklch(0.18 0.03 155);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.72 0.15 155);
-  --chart-2: oklch(0.7 0.14 250);
-  --chart-3: oklch(0.8 0.14 70);
-  --chart-4: oklch(0.7 0.18 25);
-  --chart-5: oklch(0.7 0.14 300);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #1a1a17;
+  --foreground: #ffffff;
+  --card: #262622;
+  --card-foreground: #ffffff;
+  --popover: #262622;
+  --popover-foreground: #ffffff;
+  --primary: #e60023;
+  --primary-foreground: #ffffff;
+  --secondary: #33332e;
+  --secondary-foreground: #ffffff;
+  --muted: #262622;
+  --muted-foreground: #c8c8c1;
+  --accent: #33332e;
+  --accent-foreground: #ffffff;
+  --destructive: #ff6b6b;
+  --border: #3a3a35;
+  --input: #62625b;
+  --ring: #617bff;
+  --chart-1: #f6f6f3;
+  --chart-2: #8fa0ff;
+  --chart-3: #c27ccc;
+  --chart-4: #ff8a8a;
+  --chart-5: #91918c;
+  --sidebar: #262622;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #e60023;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #33332e;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3a3a35;
+  --sidebar-ring: #617bff;
 }
 
 @layer base {
@@ -122,9 +188,14 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-body-md text-body;
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply text-ink;
   }
 }

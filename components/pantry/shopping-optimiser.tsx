@@ -69,18 +69,18 @@ export function ShoppingOptimiser({
                 value={[settings.horizonDays]}
                 onValueChange={(v) => set({ horizonDays: Array.isArray(v) ? v[0] : v })}
               />
-              <span className="w-16 shrink-0 text-sm tabular-nums">{settings.horizonDays} days</span>
+              <span className="w-16 shrink-0 text-sm font-semibold tabular-nums text-ink">{settings.horizonDays} days</span>
             </div>
           </div>
           <div className="space-y-3">
             <Label htmlFor="budget">Budget cap (optional)</Label>
             <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">£</span>
+              <span className="pointer-events-none absolute left-[15px] top-1/2 -translate-y-1/2 text-base text-mute">£</span>
               <Input
                 id="budget"
                 inputMode="decimal"
                 placeholder="No limit"
-                className="pl-6"
+                className="pl-8"
                 value={budgetText}
                 onChange={(e) => {
                   setBudgetText(e.target.value);
@@ -100,13 +100,13 @@ export function ShoppingOptimiser({
                 value={[settings.wasteAversion]}
                 onValueChange={(v) => set({ wasteAversion: Array.isArray(v) ? v[0] : v })}
               />
-              <span className="w-16 shrink-0 text-sm tabular-nums">×{settings.wasteAversion.toFixed(2)}</span>
+              <span className="w-16 shrink-0 text-sm font-semibold tabular-nums text-ink">×{settings.wasteAversion.toFixed(2)}</span>
             </div>
           </div>
           <div className="flex items-center justify-between gap-3 md:pt-6">
             <Label htmlFor="five-a-day" className="leading-snug">
               Protect fruit &amp; veg
-              <span className="block text-xs font-normal text-muted-foreground">Prioritise 5-a-day when budget is tight</span>
+              <span className="block text-xs font-normal text-mute">Prioritise 5-a-day when budget is tight</span>
             </Label>
             <Switch
               id="five-a-day"
@@ -145,8 +145,8 @@ export function ShoppingOptimiser({
                   {basket.lines.map((l) => (
                     <TableRow key={l.product.id}>
                       <TableCell>
-                        <div className="font-medium">{l.product.name}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="font-semibold text-ink">{l.product.name}</div>
+                        <div className="text-xs text-mute">
                           have {formatQty(l.plan.stock, l.product.unit)} · need {formatQty(l.plan.need, l.product.unit)}
                         </div>
                       </TableCell>
@@ -155,7 +155,7 @@ export function ShoppingOptimiser({
                       <TableCell>
                         <div className="flex max-w-80 flex-wrap gap-1">
                           {l.reasons.map((r) => (
-                            <Badge key={r} variant="outline" className="font-normal">
+                            <Badge key={r} variant="outline" className="font-medium">
                               {r}
                             </Badge>
                           ))}
@@ -180,7 +180,7 @@ export function ShoppingOptimiser({
           </CardContent>
           {basket.lines.length > 0 && (
             <CardFooter className="flex-wrap justify-between gap-3">
-              <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-body-sm text-mute">
                 <span>
                   Spend <b className="text-foreground">{formatPence(basket.cost)}</b>
                 </span>
@@ -215,13 +215,13 @@ export function ShoppingOptimiser({
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={104} />
                   <ChartTooltip
-                    cursor={{ fill: "var(--muted)", opacity: 0.6 }}
+                    cursor={{ fill: "var(--color-secondary-bg)", opacity: 0.6 }}
                     content={
                       <ChartTooltipContent
                         hideIndicator
                         formatter={(v) => (
                           <span>
-                            True cost <span className="font-mono font-medium tabular-nums">£{Number(v).toFixed(2)}</span>
+                            True cost <span className="font-semibold tabular-nums text-ink">£{Number(v).toFixed(2)}</span>
                           </span>
                         )}
                       />
@@ -229,7 +229,7 @@ export function ShoppingOptimiser({
                   />
                   <Bar dataKey="trueCost" radius={[0, 4, 4, 0]} maxBarSize={22}>
                     {chartData.map((d) => (
-                      <Cell key={d.name} fill={d.optimised ? "var(--color-trueCost)" : "var(--muted-foreground)"} fillOpacity={d.optimised ? 1 : 0.35} />
+                      <Cell key={d.name} fill={d.optimised ? "var(--color-trueCost)" : "var(--color-stone)"} />
                     ))}
                     <LabelList
                       dataKey="trueCost"
@@ -261,7 +261,7 @@ export function ShoppingOptimiser({
                 </TableBody>
               </Table>
               {saving > 50 && (
-                <p className="mt-3 rounded-md bg-primary/10 p-3 text-sm text-primary">
+                <p className="mt-4 rounded-lg bg-success-pale p-4 text-body-sm text-success-deep">
                   PantryIQ saves about <b>{formatPence(saving)}</b> versus re-buying last week&apos;s shop — over{" "}
                   <b>{formatPence(saving * 52 * (7 / settings.horizonDays))}</b> a year.
                 </p>
@@ -275,7 +275,7 @@ export function ShoppingOptimiser({
                 <Sigma className="size-4" /> How it&apos;s solved
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
+            <CardContent className="space-y-2 text-xs text-mute">
               <p>
                 Each product&apos;s integer pack choices (n<sub>i,k</sub> ∈ ℤ≥0) are scored by simulating your household&apos;s
                 consumption day by day, so expiry dates and pack sizes are modelled exactly.
@@ -294,7 +294,7 @@ export function ShoppingOptimiser({
                   {state.household.excluded.map((id, i) => (
                     <button
                       key={id}
-                      className="underline underline-offset-2 hover:text-foreground"
+                      className="font-semibold text-ink-soft underline-offset-2 hover:underline"
                       onClick={() => dispatch({ type: "toggleExclude", productId: id })}
                     >
                       {PRODUCTS_BY_ID[id]?.name ?? id}

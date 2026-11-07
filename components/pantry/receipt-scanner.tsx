@@ -110,7 +110,7 @@ export function ReceiptScanner({
         </CardHeader>
         <CardContent className="space-y-4">
           <div
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground transition-colors hover:bg-muted/60"
+            className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-stone bg-canvas p-8 text-center text-body-sm text-mute transition-colors hover:border-ash"
             onClick={() => fileInput.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -120,10 +120,10 @@ export function ReceiptScanner({
           >
             {preview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Receipt preview" className="max-h-48 rounded-md object-contain" />
+              <img src={preview} alt="Receipt preview" className="max-h-48 rounded-lg object-contain" />
             ) : (
               <>
-                <Camera className="size-6" />
+                <span className="flex size-10 items-center justify-center rounded-full bg-surface-card text-ink"><Camera className="size-4" /></span>
                 <span>Drop a receipt photo or click to upload</span>
               </>
             )}
@@ -136,24 +136,24 @@ export function ReceiptScanner({
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
             />
           </div>
-          <Button className="w-full" disabled={!file || loading} onClick={() => scan("image")}>
+          <Button variant="secondary" className="w-full" disabled={!file || loading} onClick={() => scan("image")}>
             {loading && file ? <Loader2 className="animate-spin" /> : <Sparkles />}
             Read photo with AI
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> or paste text <div className="h-px flex-1 bg-border" />
+          <div className="flex items-center gap-3 text-xs font-medium text-mute">
+            <div className="h-px flex-1 bg-hairline" /> or paste text <div className="h-px flex-1 bg-hairline" />
           </div>
 
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={"TESCO STORES\nSEMI SKMD MILK 4PT   1.65\n..."}
-            className="h-40 font-mono text-xs"
+            className="h-40 text-sm tabular-nums"
           />
           <div className="flex flex-wrap gap-2">
             {SAMPLE_RECEIPTS.map((s) => (
-              <Button key={s.label} variant="outline" size="sm" onClick={() => setText(s.text)}>
+              <Button key={s.label} variant="outline" size="sm" className="rounded-full bg-canvas" onClick={() => setText(s.text)}>
                 <FileText /> {s.label}
               </Button>
             ))}
@@ -187,7 +187,7 @@ export function ReceiptScanner({
             </Alert>
           )}
           {!receipt && !error && (
-            <div className="flex h-64 flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <div className="flex h-64 flex-col items-center justify-center gap-2 text-center text-body-sm text-mute">
               <ScanLine className="size-8 opacity-40" />
               Scan a receipt to see what PantryIQ finds.
               <span className="text-xs">Tip: try one of the sample receipts.</span>
@@ -209,7 +209,7 @@ export function ReceiptScanner({
                   const product = line.productId ? PRODUCTS_BY_ID[line.productId] : null;
                   return (
                     <TableRow key={i} className={product ? "" : "opacity-60"}>
-                      <TableCell className="max-w-48 truncate font-mono text-xs" title={line.raw}>
+                      <TableCell className="max-w-48 truncate text-xs font-medium uppercase tracking-wide text-body" title={line.raw}>
                         {line.count > 1 ? `${line.count} × ` : ""}
                         {line.raw}
                       </TableCell>
@@ -219,7 +219,7 @@ export function ReceiptScanner({
                           value={line.productId ?? IGNORE}
                           onValueChange={(v) => updateLine(i, v as string)}
                         >
-                          <SelectTrigger size="sm" className="w-52">
+                          <SelectTrigger size="sm" className="w-52 font-medium">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -244,7 +244,7 @@ export function ReceiptScanner({
                         {line.linePrice != null ? formatPence(line.linePrice) : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant={line.matchScore >= 0.75 ? "secondary" : line.productId ? "outline" : "destructive"}>
+                        <Badge className={line.matchScore >= 0.75 ? "bg-success-pale text-success-deep" : line.productId ? "bg-canvas text-ink" : "bg-error/10 text-error"}>
                           {Math.round(line.matchScore * 100)}%
                         </Badge>
                       </TableCell>
@@ -257,7 +257,7 @@ export function ReceiptScanner({
         </CardContent>
         {receipt && (
           <CardFooter className="justify-between gap-2">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-body-sm text-mute">
               {matched.length} of {receipt.lines.length} lines matched ·{" "}
               {formatPence(matched.reduce((s, l) => s + (l.linePrice ?? 0), 0))}
             </span>

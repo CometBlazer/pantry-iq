@@ -14,21 +14,21 @@ import { formatDay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const STATUS_META: Record<StockStatus, { label: string; className: string }> = {
-  out: { label: "Out", className: "bg-destructive/10 text-destructive border-destructive/30" },
-  low: { label: "Running low", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30" },
-  expiring: { label: "Use soon", className: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30" },
-  ok: { label: "Stocked", className: "bg-primary/10 text-primary border-primary/30" },
+  out: { label: "Out", className: "bg-error/10 text-error" },
+  low: { label: "Running low", className: "bg-ink text-on-dark" },
+  expiring: { label: "Use soon", className: "bg-accent-purple/10 text-accent-purple" },
+  ok: { label: "Stocked", className: "bg-success-pale text-success-deep" },
 };
 
 function CoverBar({ days, horizon = 14 }: { days: number; horizon?: number }) {
   const pct = Math.min(100, (days / horizon) * 100);
-  const color = days < 2 ? "bg-destructive" : days < 4 ? "bg-amber-500" : "bg-primary";
+  const color = days < 2 ? "bg-error" : days < 4 ? "bg-accent-purple" : "bg-charcoal";
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary-bg">
         <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-14 text-xs tabular-nums text-muted-foreground">
+      <span className="w-14 text-xs tabular-nums text-mute">
         {Number.isFinite(days) ? (days >= 60 ? "60+ d" : `${days.toFixed(1)} d`) : "—"}
       </span>
     </div>
@@ -77,13 +77,13 @@ export function PantryTable({
               return (
                 <TableRow key={o.productId}>
                   <TableCell>
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-xs text-muted-foreground">{p.category}</div>
+                    <div className="font-semibold text-ink">{p.name}</div>
+                    <div className="text-xs text-mute">{p.category}</div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {o.stock > 0 ? `${formatQty(o.stock, p.unit)}${p.unit === "item" ? " items" : ""}` : "—"}
                     {o.stockValue > 0 && (
-                      <div className="text-xs text-muted-foreground">{formatPence(o.stockValue)}</div>
+                      <div className="text-xs text-mute">{formatPence(o.stockValue)}</div>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -101,7 +101,7 @@ export function PantryTable({
                       <Tooltip>
                         <TooltipTrigger className="min-w-16 text-right tabular-nums">
                           {formatQty(o.rate.rate, p.unit)}
-                          {o.rate.intervals > 0 && <span className="ml-1 text-primary">●</span>}
+                          {o.rate.intervals > 0 && <span className="ml-1 text-success-deep">●</span>}
                         </TooltipTrigger>
                         <TooltipContent>
                           {o.rate.observed !== null
@@ -127,19 +127,19 @@ export function PantryTable({
                   </TableCell>
                   <TableCell className="text-sm">
                     {o.nextExpiryDay !== null ? (
-                      <span className={cn(o.nextExpiryDay - today <= 2 && "font-medium text-orange-600 dark:text-orange-400")}>
+                      <span className={cn(o.nextExpiryDay - today <= 2 && "font-semibold text-accent-purple")}>
                         {formatDay(o.nextExpiryDay)}
                       </span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-ash">—</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={status.className}>
+                    <Badge className={status.className}>
                       {status.label}
                     </Badge>
                     {o.projectedWasteValue >= 10 && (
-                      <div className="mt-1 text-xs text-orange-600 dark:text-orange-400">
+                      <div className="mt-1 text-xs font-medium text-accent-purple">
                         {formatPence(o.projectedWasteValue)} at risk
                       </div>
                     )}
