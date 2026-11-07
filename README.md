@@ -26,11 +26,21 @@ Optionally, add an Anthropic key to `.env.local` for more accurate photo reading
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+### Testing the photo pipeline
+
+`scripts/ocr-eval.ts` runs the exact on-device pipeline (clean-up → Tesseract → parser) on a photo and
+scores it against the expected contents of the sample receipt:
+
+```bash
+python scripts/dump_rgba.py path/to/receipt.jpg receipt.rgba   # prints width and height
+npx tsx scripts/ocr-eval.ts receipt.rgba <width> <height>
+```
+
 ## How it works
 
 | Spec component | MVP implementation |
 | --- | --- |
-| Receipt extraction | On-device OCR (`lib/ocr.ts`, tesseract.js) + rule-based parser with OCR price repair (`lib/receipt.ts`); optional Claude vision (`app/api/receipt/route.ts`) when a key is set |
+| Receipt extraction | On-device: photo clean-up (`lib/ocr-preprocess.ts`: find paper, crop, deskew, adaptive threshold) → tesseract.js (`lib/ocr.ts`) → rule-based parser (`lib/receipt.ts`) that handles qty/unit-price/total columns, comma decimals, €/£/$, and repairs OCR digit slips using the receipt total as a checksum. Optional Claude vision (`app/api/receipt/route.ts`) when a key is set |
 | Product identification | `lib/matching.ts` — abbreviation expansion, character-trigram Dice + token overlap against the food database (`lib/catalog.ts`), pack-size parsing |
 | Inventory management | `lib/store.ts` — lots with purchase/expiry dates, FIFO-by-expiry consumption, waste log. Persisted to `localStorage` (actions map 1:1 onto PostgreSQL writes for production) |
 | Consumption forecasting | `lib/forecast.ts` — per-product rate blends a per-person prior with the rate observed between shops; daily stock simulation predicts run-outs and expiry waste |

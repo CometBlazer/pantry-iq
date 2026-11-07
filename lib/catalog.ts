@@ -484,6 +484,14 @@ export function formatQty(qty: number, unit: Unit): string {
   return `${Math.round(qty)} ${unit}`;
 }
 
+const CURRENCY_SYMBOL = { GBP: "£", EUR: "€", USD: "$" } as const;
+
+/** Minor units (pence/cents) in the given currency. */
+export function formatMoney(minor: number, currency: keyof typeof CURRENCY_SYMBOL = "GBP"): string {
+  const sign = minor < 0 ? "-" : "";
+  return `${sign}${CURRENCY_SYMBOL[currency]}${(Math.abs(minor) / 100).toFixed(2)}`;
+}
+
 export function formatPence(p: number): string {
   const sign = p < 0 ? "-" : "";
   return `${sign}£${(Math.abs(p) / 100).toFixed(2)}`;

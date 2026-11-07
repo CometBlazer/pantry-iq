@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, FileText, ImageIcon, Loader2, ScanLine, Sparkles, Upload } from "lucide-react";
+import { Camera, FileText, ImageIcon, Loader2, ScanLine, Sparkles, Upload, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { CATALOG, formatPence, formatQty, PRODUCTS_BY_ID } from "@/lib/catalog";
+import { CATALOG, formatMoney, formatQty, PRODUCTS_BY_ID } from "@/lib/catalog";
 import { ocrReceipt } from "@/lib/ocr";
-import { parseReceiptText, requantify, resolveItems, SAMPLE_RECEIPTS } from "@/lib/receipt";
+import { parseReceiptText, requantify, SAMPLE_RECEIPTS, toParsedReceipt } from "@/lib/receipt";
 import type { ParsedReceipt, ReceiptLine } from "@/lib/types";
 
 const IGNORE = "__ignore";
@@ -69,7 +69,7 @@ export function ReceiptScanner({
         "Couldn't find any priced lines in that photo. Try a flatter, well-lit shot, or edit the recognised text below and press Parse.",
       );
     }
-    setReceipt({ store: raw.store, date: raw.date, total: raw.total, engine: "ocr", lines: resolveItems(raw.items) });
+    setReceipt(toParsedReceipt(raw, "ocr"));
   };
 
   const scan = async (source: "image" | "text") => {
@@ -227,7 +227,7 @@ export function ReceiptScanner({
           <CardTitle>Extracted items</CardTitle>
           <CardDescription>
             {receipt
-              ? `${receipt.store}${receipt.date ? ` · ${receipt.date}` : ""} · ${receipt.lines.length} lines · read by ${receipt.engine === "claude" ? "Claude" : receipt.engine === "ocr" ? "on-device OCR — check the matches" : "rule-based parser"}`
+              ? `${receipt.store}${receipt.date ? ` · ${receipt.date}` : ""}${receipt.total != null ? ` · total ${formatMoney(receipt.total, receipt.currency)}` : ""} · ${receipt.lines.length} lines · read by ${receipt.engine === "claude" ? "Claude" : receipt.engine === "ocr" ? "on-device OCR — check the matches" : "rule-based parser"}`
               : "Check the matches before adding them to your pantry."}
           </CardDescription>
         </CardHeader>
@@ -244,6 +244,16 @@ export function ReceiptScanner({
               Scan a receipt to see what PantryIQ finds.
               <span className="text-xs">Tip: try one of the sample receipts.</span>
             </div>
+          )}
+          {receipt?.kind === "dining" && (
+            <Alert className="mb-4 border-0 bg-surface-card">
+              <UtensilsCrossed />
+              <AlertTitle>This looks like a restaurant bill</AlertTitle>
+              <AlertDescription>
+                Meals you&apos;ve already eaten don&apos;t go in the pantry, so nothing is selected. If any line is
+                groceries, pick the product to add it.
+              </AlertDescription>
+            </Alert>
           )}
           {receipt && (
             <Table>
@@ -293,12 +303,16 @@ export function ReceiptScanner({
                         {product ? `${formatQty(line.qty, product.unit)}${product.unit === "item" ? " items" : ""}` : "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {line.linePrice != null ? formatPence(line.linePrice) : "—"}
+                        {line.linePrice != null ? formatMoney(line.linePrice, receipt.currency) : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge className={line.matchScore >= 0.75 ? "bg-success-pale text-success-deep" : line.productId ? "bg-canvas text-ink" : "bg-error/10 text-error"}>
-                          {Math.round(line.matchScore * 100)}%
-                        </Badge>
+                        {receipt.kind === "dining" && !line.productId ? (
+                          <Badge variant="secondary">Meal</Badge>
+                        ) : (
+                          <Badge className={line.matchScore >= 0.75 ? "bg-success-pale text-success-deep" : line.productId ? "bg-canvas text-ink" : "bg-error/10 text-error"}>
+                            {Math.round(line.matchScore * 100)}%
+                          </Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -311,7 +325,7 @@ export function ReceiptScanner({
           <CardFooter className="justify-between gap-2">
             <span className="text-body-sm text-mute">
               {matched.length} of {receipt.lines.length} lines matched ·{" "}
-              {formatPence(matched.reduce((s, l) => s + (l.linePrice ?? 0), 0))}
+              {formatMoney(matched.reduce((s, l) => s + (l.linePrice ?? 0), 0), receipt.currency)}
             </span>
             <Button onClick={commit} disabled={!matched.length}>
               Add {matched.length} items to pantry

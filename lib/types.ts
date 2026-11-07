@@ -60,6 +60,9 @@ export interface ParsedReceipt {
   date: string | null;
   total: number | null;
   engine: "claude" | "rules" | "ocr";
+  currency: "GBP" | "EUR" | "USD";
+  /** Restaurant / takeaway bills are spend, not pantry stock */
+  kind: "grocery" | "dining";
   lines: ReceiptLine[];
 }
 

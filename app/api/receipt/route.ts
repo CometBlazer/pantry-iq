@@ -2,12 +2,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { CATALOG } from "@/lib/catalog";
-import { parseReceiptText, resolveItems, type RawReceipt } from "@/lib/receipt";
+import { parseReceiptText, toParsedReceipt, type RawReceipt } from "@/lib/receipt";
 import type { ParsedReceipt } from "@/lib/types";
 
 //
 const ReceiptSchema = z.object({
   store: z.string(),
+  currency: z.enum(["GBP", "EUR", "USD"]),
+  kind: z.enum(["grocery", "dining"]),
   date: z.string().nullable(),
   total_pence: z.number().int().nullable(),
   items: z.array(
@@ -20,12 +22,13 @@ const ReceiptSchema = z.object({
   ),
 });
 
-const SYSTEM = `You extract grocery line items from UK supermarket receipts.
+const SYSTEM = `You extract line items from shop and restaurant receipts (any language).
+Set currency from the symbols on the receipt, and kind to "dining" for restaurant, café or takeaway bills.
 For each purchased product return:
 - receipt_text: the line as printed, keeping any pack size text (e.g. "SEMI SKMD MILK 4PT").
 - product_name: a plain-English product name with the pack size, e.g. "Semi-skimmed milk 4 pints". Prefer the closest name from the reference list when one fits.
 - count: number of units bought (from "3 x" or "@" lines; default 1).
-- line_total_pence: the amount paid for the line after any multibuy or loyalty discount printed directly beneath it.
+- line_total_pence: the amount paid for the line in minor units (pence/cents), after any multibuy or loyalty discount printed directly beneath it.
 Skip totals, payment, VAT, loyalty points and bag charges. Dates use YYYY-MM-DD; use null when unreadable.
 
 Reference product names: ${CATALOG.map((p) => p.name).join("; ")}.`;
@@ -61,6 +64,8 @@ async function extractWithClaude(
 
   return {
     store: parsed.store,
+    currency: parsed.currency,
+    kind: parsed.kind,
     date: parsed.date,
     total: parsed.total_pence,
     items: parsed.items.map((i) => ({
@@ -106,13 +111,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Provide a receipt image or text." }, { status: 400 });
     }
 
-    const result: ParsedReceipt = {
-      store: raw.store,
-      date: raw.date,
-      total: raw.total,
-      engine,
-      lines: resolveItems(raw.items),
-    };
+    const result: ParsedReceipt = toParsedReceipt(raw, engine);
     return Response.json(result);
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError) {
