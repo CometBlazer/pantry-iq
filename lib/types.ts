@@ -59,7 +59,7 @@ export interface ParsedReceipt {
   store: string;
   date: string | null;
   total: number | null;
-  engine: "claude" | "rules";
+  engine: "claude" | "rules" | "ocr";
   lines: ReceiptLine[];
 }
 

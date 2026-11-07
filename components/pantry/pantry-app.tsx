@@ -306,7 +306,7 @@ export function PantryApp() {
           <div className="space-y-2">
             <div className="font-bold text-ink">Your data</div>
             <p>Stored only in this browser</p>
-            <p>Receipt photos are sent to Claude for reading and not kept</p>
+            <p>Receipt photos are read on your device (or by Claude, if an API key is configured) and not kept</p>
           </div>
           <div className="space-y-2">
             <div className="font-bold text-ink">Built for</div>

@@ -7,8 +7,12 @@ import type { ReceiptLine } from "./types";
 export interface RawItem {
   name: string;
   count: number;
-  /** Line total in pence */
+  /** Line total in pence (after any discount printed beneath it) */
   linePrice: number | null;
+  /** OCR only: other plausible readings of a garbled price (pence, before discount) */
+  priceCandidates?: number[];
+  /** OCR only: discount (pence) applied to this line */
+  discount?: number;
 }
 
 export interface RawReceipt {
@@ -20,21 +24,57 @@ export interface RawReceipt {
 
 const SKIP = /\b(sub\s*total|total|balance|visa|mastercard|debit|credit|card|change|cash|vat|tender|contactless|auth|merchant|terminal|thank|receipt|tel|www|points|clubcard\s+points|nectar\s+points|items?\s+sold|savings?|bag\s+charge|carrier\s+bag)\b/i;
 const DISCOUNT = /^(.*?)(-\s?£?\d+\.\d{2})\s*$/;
-const PRICE_AT_END = /^(.*?)\s+£?(\d+\.\d{2})\s*[A-Z*]?\s*$/;
+// OCR often reads the minus sign as "=", "~" or a dash variant
+const OCR_DISCOUNT = /^(.*?)\s[-=~–—]\s?£?(\d+\.\d{2})\s*$/;
+const PRICE_AT_END = /^(.*?)\s+£?(\d+\.\d{2})(?:\s+[A-Z*])?\s*$/;
+// OCR: last token starting and ending with a digit (decimal point may be misread as a digit or symbol)
+const OCR_PRICE_AT_END = /^(.*?)\s+[£$€]?(\d[\d.,¥$%:;'’`]*\d)(?:\s+[A-Z*])?\s*$/;
 const COUNT_PREFIX = /^(\d+)\s*[x@*]\s*(.*)$/i;
 const AT_PRICE = /(.*?)\s*@\s*£?\d+\.\d{2}/i;
 
-/** Rule-based parser for plain-text receipts (offline fallback; Claude handles photos). */
-export function parseReceiptText(text: string): RawReceipt {
+/**
+ * Possible readings (pence) of an OCR'd price token, most likely first.
+ * "1.65" → [165]; "1¥35" → [135]; "2499" → [299, 2499] (dot read as "4");
+ * "31935" → [335, 3135, 31935] (dot read as "19").
+ */
+export function decodeOcrPrice(token: string): number[] {
+  const exact = token.match(/^(\d+)[.,](\d{2})$/);
+  if (exact) return [parseInt(exact[1], 10) * 100 + parseInt(exact[2], 10)];
+  const digits = token.replace(/\D/g, "");
+  if (digits.length < 3) return [];
+  const pence = parseInt(digits.slice(-2), 10);
+  const out: number[] = [];
+  // The decimal point may have become 2, 1 or 0 extra characters — prefer the smallest (grocery) price
+  for (const drop of [4, 3, 2]) {
+    const pounds = digits.slice(0, -drop);
+    if (!pounds) continue;
+    const v = parseInt(pounds, 10) * 100 + pence;
+    if (!out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Rule-based parser for plain-text receipts (offline fallback; Claude handles photos when configured).
+ * With `ocr: true` it also tolerates OCR misreads of prices and discount signs.
+ */
+export function parseReceiptText(text: string, opts: { ocr?: boolean } = {}): RawReceipt {
+  const ocr = !!opts.ocr;
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const items: RawItem[] = [];
   let total: number | null = null;
   let date: string | null = null;
   const store = lines[0]?.replace(/[^A-Za-z' &]/g, "").trim() || "Unknown store";
 
-  for (const line of lines.slice(1)) {
+  for (const rawLine of lines.slice(1)) {
+    // Tidy common OCR slips in prices: "1,65" / "1 .65" / "1. 65" → "1.65"
+    const line = rawLine
+      .replace(/(\d)\s*,\s*(\d{2})(?!\d)/g, "$1.$2")
+      .replace(/(\d)\s+\.\s*(\d{2})(?!\d)/g, "$1.$2")
+      .replace(/(\d)\.\s+(\d{2})(?!\d)/g, "$1.$2");
     const d = line.match(/\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b/);
-    if (d && !date) {
+    // Ignore impossible dates (OCR can turn "02/11" into "92/11")
+    if (d && !date && +d[1] >= 1 && +d[1] <= 31 && +d[2] >= 1 && +d[2] <= 12) {
       const y = d[3].length === 2 ? `20${d[3]}` : d[3];
       date = `${y}-${d[2].padStart(2, "0")}-${d[1].padStart(2, "0")}`;
     }
@@ -45,18 +85,31 @@ export function parseReceiptText(text: string): RawReceipt {
     if (SKIP.test(line)) continue;
 
     // Promotions / loyalty price cuts apply to the previous item
-    const disc = line.match(DISCOUNT);
+    const disc = line.match(ocr ? OCR_DISCOUNT : DISCOUNT);
     if (disc && items.length) {
-      const amount = Math.round(parseFloat(disc[2].replace(/[£\s-]/g, "")) * 100);
+      const amount = Math.round(parseFloat(disc[2].replace(/[£\s=~–—-]/g, "")) * 100);
       const prev = items[items.length - 1];
+      if (ocr) prev.discount = (prev.discount ?? 0) + amount;
       if (prev.linePrice != null) prev.linePrice = Math.max(0, prev.linePrice - amount);
       continue;
     }
 
+    let name: string;
+    let linePrice: number;
+    let priceCandidates: number[] | undefined;
     const m = line.match(PRICE_AT_END);
-    if (!m) continue;
-    let name = m[1].trim();
-    const linePrice = Math.round(parseFloat(m[2]) * 100);
+    if (m) {
+      name = m[1].trim();
+      linePrice = Math.round(parseFloat(m[2]) * 100);
+      if (ocr) priceCandidates = [linePrice];
+    } else {
+      const o = ocr ? line.match(OCR_PRICE_AT_END) : null;
+      const candidates = o ? decodeOcrPrice(o[2]) : [];
+      if (!o || !candidates.length) continue;
+      name = o[1].trim();
+      linePrice = candidates[0];
+      priceCandidates = candidates;
+    }
     let count = 1;
     const c = name.match(COUNT_PREFIX);
     if (c) {
@@ -67,9 +120,30 @@ export function parseReceiptText(text: string): RawReceipt {
     if (at) name = at[1];
     name = name.replace(/\s{2,}/g, " ").trim();
     if (!/[a-z]/i.test(name)) continue;
-    items.push({ name, count, linePrice });
+    items.push({ name, count, linePrice, priceCandidates });
   }
   return { store, date, total, items };
+}
+
+/**
+ * OCR price repair: choose the reading closest to what this product actually costs.
+ * If every reading is implausible (e.g. "0.95" read as "9.95"), keep the pence and pick the
+ * pounds digit that best fits the catalogue price.
+ */
+function plausiblePrice(item: RawItem, packPrices: number[]): number | null {
+  const cands = item.priceCandidates;
+  if (!cands?.length) return item.linePrice;
+  const expected = packPrices.map((p) => p * item.count);
+  const fit = (v: number) => Math.min(...expected.map((e) => Math.abs(Math.log(Math.max(v, 1) / e))));
+  let best = cands.reduce((a, b) => (fit(b) < fit(a) ? b : a));
+  if (fit(best) > Math.log(1.7)) {
+    const pence = best % 100;
+    const repaired = Array.from({ length: 30 }, (_, pounds) => pounds * 100 + pence).reduce((a, b) =>
+      fit(b) < fit(a) ? b : a,
+    );
+    if (fit(repaired) < Math.log(1.25)) best = repaired;
+  }
+  return Math.max(0, best - (item.discount ?? 0));
 }
 
 /** Resolve raw receipt items to catalogue products via fuzzy entity matching. */
@@ -77,13 +151,14 @@ export function resolveItems(items: RawItem[]): ReceiptLine[] {
   return items.map((item) => {
     const match = matchProduct(item.name);
     const product = match.product;
+    const linePrice = product ? plausiblePrice(item, product.packs.map((p) => p.price)) : item.linePrice;
     return {
       raw: item.name,
       count: item.count,
-      linePrice: item.linePrice,
+      linePrice,
       productId: product?.id ?? null,
       matchScore: match.score,
-      qty: product ? inferQuantity(item.name, product, item.count, item.linePrice) : 0,
+      qty: product ? inferQuantity(item.name, product, item.count, linePrice) : 0,
       alternatives: match.alternatives.map((a) => a.product.id),
     };
   });

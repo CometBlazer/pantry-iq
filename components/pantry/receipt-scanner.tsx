@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { CATALOG, formatPence, formatQty, PRODUCTS_BY_ID } from "@/lib/catalog";
-import { requantify, SAMPLE_RECEIPTS } from "@/lib/receipt";
+import { ocrReceipt } from "@/lib/ocr";
+import { parseReceiptText, requantify, resolveItems, SAMPLE_RECEIPTS } from "@/lib/receipt";
 import type { ParsedReceipt, ReceiptLine } from "@/lib/types";
 
 const IGNORE = "__ignore";
@@ -42,6 +43,7 @@ export function ReceiptScanner({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ParsedReceipt | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -52,6 +54,22 @@ export function ReceiptScanner({
     setError(null);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f ? URL.createObjectURL(f) : null);
+  };
+
+  /** Free fallback: OCR the photo in the browser, then run the rule-based parser. */
+  const scanOnDevice = async (photo: File) => {
+    setProgress("Loading text recognition…");
+    const ocrText = await ocrReceipt(photo, (status, p) => {
+      setProgress(status === "recognizing text" ? `Reading receipt… ${Math.round(p * 100)}%` : "Loading text recognition…");
+    });
+    setText(ocrText); // visible below, so the user can fix OCR slips and re-parse
+    const raw = parseReceiptText(ocrText, { ocr: true });
+    if (!raw.items.length) {
+      throw new Error(
+        "Couldn't find any priced lines in that photo. Try a flatter, well-lit shot, or edit the recognised text below and press Parse.",
+      );
+    }
+    setReceipt({ store: raw.store, date: raw.date, total: raw.total, engine: "ocr", lines: resolveItems(raw.items) });
   };
 
   const scan = async (source: "image" | "text") => {
@@ -66,6 +84,11 @@ export function ReceiptScanner({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      // 503 = no Anthropic key on the server: read the photo on this device instead
+      if (res.status === 503 && source === "image" && file) {
+        await scanOnDevice(file);
+        return;
+      }
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Could not read receipt");
       setReceipt(json as ParsedReceipt);
@@ -73,6 +96,7 @@ export function ReceiptScanner({
       setError(e instanceof Error ? e.message : "Could not read receipt");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   };
 
@@ -166,7 +190,7 @@ export function ReceiptScanner({
           </div>
           <Button variant="secondary" className="w-full" disabled={!file || loading} onClick={() => scan("image")}>
             {loading && file ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            Read photo with AI
+            {progress ?? "Read photo"}
           </Button>
 
           <div className="flex items-center gap-3 text-xs font-medium text-mute">
@@ -203,7 +227,7 @@ export function ReceiptScanner({
           <CardTitle>Extracted items</CardTitle>
           <CardDescription>
             {receipt
-              ? `${receipt.store}${receipt.date ? ` · ${receipt.date}` : ""} · ${receipt.lines.length} lines · parsed by ${receipt.engine === "claude" ? "Claude" : "rule-based parser"}`
+              ? `${receipt.store}${receipt.date ? ` · ${receipt.date}` : ""} · ${receipt.lines.length} lines · read by ${receipt.engine === "claude" ? "Claude" : receipt.engine === "ocr" ? "on-device OCR — check the matches" : "rule-based parser"}`
               : "Check the matches before adding them to your pantry."}
           </CardDescription>
         </CardHeader>
