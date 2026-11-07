@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, FileText, Loader2, ScanLine, Sparkles, Upload } from "lucide-react";
+import { Camera, FileText, ImageIcon, Loader2, ScanLine, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ export function ReceiptScanner({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ParsedReceipt | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
 
   const pickFile = (f: File | null) => {
     setFile(f);
@@ -131,13 +132,36 @@ export function ReceiptScanner({
               </>
             )}
             {/* No `capture` attribute: on iPhone/Android this lets the OS show its own menu
-                (Take Photo / Photo Library / Choose File) instead of forcing the camera. */}
+                (Photo Library / Take Photo / Choose File) instead of forcing the camera. */}
             <input
               ref={fileInput}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                pickFile(e.target.files?.[0] ?? null);
+                e.target.value = ""; // allow re-picking the same photo
+              }}
+            />
+          </div>
+          {/* Phones and tablets: explicit camera vs. photo-library choice */}
+          <div className="hidden grid-cols-2 gap-2 pointer-coarse:grid">
+            <Button variant="outline" className="w-full" onClick={() => cameraInput.current?.click()}>
+              <Camera /> Take photo
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => fileInput.current?.click()}>
+              <ImageIcon /> Choose photo
+            </Button>
+            <input
+              ref={cameraInput}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                pickFile(e.target.files?.[0] ?? null);
+                e.target.value = "";
+              }}
             />
           </div>
           <Button variant="secondary" className="w-full" disabled={!file || loading} onClick={() => scan("image")}>
