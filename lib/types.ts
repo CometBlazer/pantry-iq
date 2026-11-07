@@ -35,6 +35,21 @@ export interface Household {
   excluded: string[];
 }
 
+/** Products the user has grouped together to cook as one meal */
+export interface Meal {
+  id: string;
+  name: string;
+  productIds: string[];
+  /** Pinned to the top of the pantry */
+  starred?: boolean;
+}
+
+/** Calorie density: kcal per 100 g, per 100 ml, or per item (see lib/nutrition.ts) */
+export interface KcalEntry {
+  per: number;
+  source: "gemini" | "manual";
+}
+
 export interface PantryState {
   today: number;
   household: Household;
@@ -42,6 +57,10 @@ export interface PantryState {
   purchases: Purchase[];
   waste: WasteEvent[];
   receiptsScanned: number;
+  meals: Meal[];
+  kcal: Record<string, KcalEntry>;
+  /** Products pinned to the top of the pantry */
+  starred: string[];
 }
 
 /** One line of a parsed receipt, after product matching */
@@ -74,6 +93,16 @@ export function dayFromDate(d: Date): number {
 
 export function dateFromDay(day: number): Date {
   return new Date(day * DAY_MS);
+}
+
+/** day number <-> "YYYY-MM-DD" for <input type="date"> */
+export function isoFromDay(day: number): string {
+  return dateFromDay(day).toISOString().slice(0, 10);
+}
+
+export function dayFromIso(iso: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / DAY_MS) : null;
 }
 
 export function formatDay(day: number): string {

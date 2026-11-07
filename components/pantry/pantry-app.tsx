@@ -24,7 +24,7 @@ import { emptyState, loadState, reducer, saveState } from "@/lib/store";
 import { dayFromDate, formatDay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ForecastView } from "./forecast-view";
-import { PantryTable } from "./pantry-table";
+import { PantryBoard } from "./pantry-board";
 import { ReceiptScanner } from "./receipt-scanner";
 import { ShoppingOptimiser } from "./shopping-optimiser";
 
@@ -280,10 +280,10 @@ export function PantryApp() {
             />
           </TabsContent>
           <TabsContent value="pantry">
-            <PantryTable state={state} outlooks={outlooks} dispatch={dispatch} />
+            <PantryBoard state={state} outlooks={outlooks} dispatch={dispatch} />
           </TabsContent>
           <TabsContent value="forecast">
-            <ForecastView state={state} />
+            <ForecastView state={state} dispatch={dispatch} />
           </TabsContent>
           <TabsContent value="shop">
             <ShoppingOptimiser state={state} dispatch={dispatch} />

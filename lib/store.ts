@@ -4,7 +4,7 @@
 import { CATALOG, PRODUCTS_BY_ID } from "./catalog";
 import { estimateRate, simulateProduct, trackedProductIds } from "./forecast";
 import { parseReceiptText, resolveItems, SAMPLE_RECEIPTS } from "./receipt";
-import type { Lot, PantryState, ReceiptLine } from "./types";
+import type { KcalEntry, Lot, Meal, PantryState, ReceiptLine } from "./types";
 
 export type Action =
   | { type: "addReceipt"; store: string; lines: ReceiptLine[] }
@@ -17,7 +17,22 @@ export type Action =
   | { type: "buyBasket"; items: { productId: string; qty: number; cost: number }[] }
   | { type: "loadDemo"; today: number }
   | { type: "reset"; today: number }
-  | { type: "hydrate"; state: PantryState };
+  | { type: "hydrate"; state: PantryState }
+  | { type: "setExpiry"; lotId: string; day: number }
+  | { type: "moveToMeal"; productId: string; target: MealTarget }
+  | { type: "renameMeal"; mealId: string; name: string }
+  | { type: "ungroupMeal"; mealId: string }
+  | { type: "setKcal"; entries: Record<string, KcalEntry | null> }
+  | { type: "toggleStar"; productId: string }
+  | { type: "toggleMealStar"; mealId: string }
+  | { type: "eatMeal"; mealId: string };
+
+/** Where a dragged product lands: an existing meal, another product (forming a meal), its own new meal, or no meal */
+export type MealTarget =
+  | { kind: "meal"; mealId: string }
+  | { kind: "product"; productId: string }
+  | { kind: "new" }
+  | { kind: "none" };
 
 export function emptyState(today: number): PantryState {
   return {
@@ -27,6 +42,9 @@ export function emptyState(today: number): PantryState {
     purchases: [],
     waste: [],
     receiptsScanned: 0,
+    meals: [],
+    kcal: {},
+    starred: [],
   };
 }
 
@@ -72,6 +90,34 @@ function advance(state: PantryState, days: number): PantryState {
     lots = lots.concat(sim.remainingLots);
   }
   return { ...state, today: state.today + days, lots, waste };
+}
+
+function mealName(ids: string[]): string {
+  const names = ids.map((id) => PRODUCTS_BY_ID[id]?.name ?? id);
+  return names.length > 2 ? `${names[0]}, ${names[1]} & more` : names.join(" & ");
+}
+
+export function moveToMeal(meals: Meal[], productId: string, target: MealTarget): Meal[] {
+  const from = meals.find((m) => m.productIds.includes(productId));
+  if (target.kind === "meal" && from?.id === target.mealId) return meals;
+  if (target.kind === "product") {
+    if (target.productId === productId) return meals;
+    const theirs = meals.find((m) => m.productIds.includes(target.productId));
+    if (theirs) return moveToMeal(meals, productId, { kind: "meal", mealId: theirs.id });
+  }
+  if (target.kind === "none" && !from) return meals;
+  if (target.kind === "new" && from?.productIds.length === 1) return meals;
+
+  let next = meals
+    .map((m) => (m === from ? { ...m, productIds: m.productIds.filter((id) => id !== productId) } : m))
+    .filter((m) => m.productIds.length > 0);
+  if (target.kind === "meal") {
+    next = next.map((m) => (m.id === target.mealId ? { ...m, productIds: [...m.productIds, productId] } : m));
+  } else if (target.kind === "product" || target.kind === "new") {
+    const ids = target.kind === "product" ? [target.productId, productId] : [productId];
+    next = [...next, { id: `meal-${newId()}`, name: mealName(ids), productIds: ids }];
+  }
+  return next;
 }
 
 export function reducer(state: PantryState, action: Action): PantryState {
@@ -122,6 +168,46 @@ export function reducer(state: PantryState, action: Action): PantryState {
         ],
       };
     }
+    case "setExpiry":
+      return {
+        ...state,
+        lots: state.lots.map((l) => (l.id === action.lotId ? { ...l, expiresDay: action.day } : l)),
+      };
+    case "moveToMeal":
+      return { ...state, meals: moveToMeal(state.meals, action.productId, action.target) };
+    case "renameMeal":
+      return {
+        ...state,
+        meals: state.meals.map((m) => (m.id === action.mealId ? { ...m, name: action.name } : m)),
+      };
+    case "ungroupMeal":
+      return { ...state, meals: state.meals.filter((m) => m.id !== action.mealId) };
+    case "setKcal": {
+      const kcal = { ...state.kcal };
+      for (const [id, entry] of Object.entries(action.entries)) {
+        if (entry) kcal[id] = entry;
+        else delete kcal[id];
+      }
+      return { ...state, kcal };
+    }
+    case "toggleStar":
+      return {
+        ...state,
+        starred: state.starred.includes(action.productId)
+          ? state.starred.filter((id) => id !== action.productId)
+          : [...state.starred, action.productId],
+      };
+    case "toggleMealStar":
+      return {
+        ...state,
+        meals: state.meals.map((m) => (m.id === action.mealId ? { ...m, starred: !m.starred } : m)),
+      };
+    case "eatMeal": {
+      // Everything in the meal was eaten: its stock is used up (not waste); the meal itself stays for next time
+      const meal = state.meals.find((m) => m.id === action.mealId);
+      if (!meal) return state;
+      return { ...state, lots: state.lots.filter((l) => !meal.productIds.includes(l.productId)) };
+    }
     case "reset":
       return emptyState(action.today);
     case "loadDemo":
@@ -148,7 +234,15 @@ function buildDemo(today: number): PantryState {
   s = advance(s, 3);
   s = scan(s, 0);
   s = advance(s, 4);
-  return s;
+  const tracked = new Set(trackedProductIds(s.lots, s.purchases));
+  const meals: Meal[] = [
+    { id: "meal-demo-bolognese", name: "Spaghetti bolognese", starred: true, productIds: ["beef-mince", "pasta", "chopped-tomatoes", "onions"] },
+    { id: "meal-demo-chicken", name: "Chicken, rice & greens", productIds: ["chicken-breast", "rice", "spinach"] },
+    { id: "meal-demo-porridge", name: "Porridge", productIds: ["oats", "bananas"] },
+  ]
+    .map((m) => ({ ...m, productIds: m.productIds.filter((id) => tracked.has(id)) }))
+    .filter((m) => m.productIds.length >= 2);
+  return { ...s, meals, starred: ["milk-semi"].filter((id) => tracked.has(id)) };
 }
 
 const KEY = "pantryiq-state-v1";
@@ -163,6 +257,12 @@ export function loadState(): PantryState | null {
     const known = new Set(CATALOG.map((p) => p.id));
     return {
       ...parsed,
+      // Fields added after v1 shipped
+      meals: (parsed.meals ?? [])
+        .map((m) => ({ ...m, productIds: m.productIds.filter((id) => known.has(id)) }))
+        .filter((m) => m.productIds.length > 0),
+      kcal: parsed.kcal ?? {},
+      starred: parsed.starred ?? [],
       lots: parsed.lots.filter((l) => known.has(l.productId)),
       purchases: parsed.purchases.filter((p) => known.has(p.productId)),
     };

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
-import { AlertTriangle, PackageX } from "lucide-react";
+import { AlertTriangle, Minus, PackageX, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Label } from "@/components/ui/label";
@@ -11,13 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { formatPence, formatQty, PRODUCTS_BY_ID } from "@/lib/catalog";
 import { estimateRate, simulateProduct, trackedProductIds, type SimResult } from "@/lib/forecast";
+import type { Action } from "@/lib/store";
 import type { PantryState } from "@/lib/types";
 import { formatDay } from "@/lib/types";
 
 const stockConfig = { stock: { label: "In stock", color: "var(--chart-1)" } } satisfies ChartConfig;
 const wasteConfig = { waste: { label: "Food expiring", color: "var(--chart-3)" } } satisfies ChartConfig;
 
-export function ForecastView({ state }: { state: PantryState }) {
+export function ForecastView({ state, dispatch }: { state: PantryState; dispatch: (a: Action) => void }) {
   const [horizon, setHorizon] = useState(14);
   const today = state.today;
 
@@ -112,8 +114,8 @@ export function ForecastView({ state }: { state: PantryState }) {
                   }`
                 : "Add items to see projections"}
             </CardDescription>
-            {current && (
-              <div className="pt-2">
+            {current && product && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
                 <Select items={productItems} value={current} onValueChange={(v) => setSelected(v as string)}>
                   <SelectTrigger size="sm" className="w-60">
                     <SelectValue />
@@ -126,6 +128,15 @@ export function ForecastView({ state }: { state: PantryState }) {
                     ))}
                   </SelectContent>
                 </Select>
+                <UsageStepper
+                  productId={current}
+                  state={state}
+                  dispatch={(a) => {
+                    // Pin the chart to this product: changing usage re-ranks the default choice
+                    setSelected(current);
+                    dispatch(a);
+                  }}
+                />
               </div>
             )}
           </CardHeader>
@@ -242,6 +253,37 @@ export function ForecastView({ state }: { state: PantryState }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/** "We use more / less of this" — scales the learned consumption rate */
+function UsageStepper({
+  productId,
+  state,
+  dispatch,
+}: {
+  productId: string;
+  state: PantryState;
+  dispatch: (a: Action) => void;
+}) {
+  const product = PRODUCTS_BY_ID[productId];
+  const mult = state.household.usageMultiplier[productId] ?? 1;
+  const rate = estimateRate(productId, state.household, state.purchases);
+  const set = (m: number) => dispatch({ type: "setMultiplier", productId, multiplier: Math.min(3, Math.max(0.25, m)) });
+  return (
+    <div className="flex items-center gap-1 rounded-full bg-surface-card p-1">
+      <Button variant="ghost" size="icon-xs" aria-label="We use less" disabled={mult <= 0.25} onClick={() => set(mult - 0.25)}>
+        <Minus />
+      </Button>
+      <span className="min-w-28 text-center text-sm tabular-nums text-ink">
+        {formatQty(rate.rate, product.unit)}
+        {product.unit === "item" ? " items" : ""} / day
+        {mult !== 1 && <span className="ml-1 text-xs text-mute">×{mult}</span>}
+      </span>
+      <Button variant="ghost" size="icon-xs" aria-label="We use more" disabled={mult >= 3} onClick={() => set(mult + 0.25)}>
+        <Plus />
+      </Button>
     </div>
   );
 }

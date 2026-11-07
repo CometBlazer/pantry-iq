@@ -26,6 +26,16 @@ Optionally, add an Anthropic key to `.env.local` for more accurate photo reading
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+Calorie estimates in the pantry come from Gemini on Vertex AI when these are set (without them the
+pantry uses typical values from the food database; either way every value can be edited):
+
+```bash
+GOOGLE_VERTEX_CREDENTIALS_B64=...   # base64 of a service-account JSON key
+GOOGLE_VERTEX_PROJECT=my-project
+GOOGLE_VERTEX_LOCATION=global
+GEMINI_MODEL=gemini-3-flash-preview # optional
+```
+
 ### Testing the photo pipeline
 
 `scripts/ocr-eval.ts` runs the exact on-device pipeline (clean-up → Tesseract → parser) on a photo and
