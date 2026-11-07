@@ -124,14 +124,18 @@ export function ReceiptScanner({
             ) : (
               <>
                 <span className="flex size-10 items-center justify-center rounded-full bg-surface-card text-ink"><Camera className="size-4" /></span>
-                <span>Drop a receipt photo or click to upload</span>
+                <span>
+                  <span className="font-semibold text-ink">Take a photo or choose one</span>
+                  <span className="block">or drop a receipt image here</span>
+                </span>
               </>
             )}
+            {/* No `capture` attribute: on iPhone/Android this lets the OS show its own menu
+                (Take Photo / Photo Library / Choose File) instead of forcing the camera. */}
             <input
               ref={fileInput}
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
             />
