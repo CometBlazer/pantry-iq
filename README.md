@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PantryIQ
 
-## Getting Started
+Intelligent household inventory & cost optimisation — Lloyds "Solutions to the Cost of Living" challenge.
 
-First, run the development server:
+Scan a supermarket receipt, watch the virtual pantry fill up, fast-forward time to see what runs out or goes off,
+then get the cheapest shopping basket that covers what the household will actually need.
+
+## Running it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and click **Load demo household** (three weeks of receipt history), or scan one of the
+sample receipts on the **Scan** tab.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Photo scanning uses Claude vision. Add a key to `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
-## Learn More
+Without a key, pasted receipt text is read by the built-in rule-based parser, so the demo still works offline.
 
-To learn more about Next.js, take a look at the following resources:
+## How it works
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Spec component | MVP implementation |
+| --- | --- |
+| Receipt extraction | `app/api/receipt/route.ts` — Claude (`claude-opus-5-5`) vision + structured output for photos; regex parser (`lib/receipt.ts`) for text without a key |
+| Product identification | `lib/matching.ts` — abbreviation expansion, character-trigram Dice + token overlap against the food database (`lib/catalog.ts`), pack-size parsing |
+| Inventory management | `lib/store.ts` — lots with purchase/expiry dates, FIFO-by-expiry consumption, waste log. Persisted to `localStorage` (actions map 1:1 onto PostgreSQL writes for production) |
+| Consumption forecasting | `lib/forecast.ts` — per-product rate blends a per-person prior with the rate observed between shops; daily stock simulation predicts run-outs and expiry waste |
+| Purchasing optimisation | `lib/optimizer.ts` — integer pack choices scored by simulation (cost + λ·waste + shortfall penalty − carry-over), solved exactly as a multiple-choice knapsack under an optional budget; compared against habitual re-buy, bulk-buy and small-packs strategies |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+UI is Next.js 16 (App Router) + shadcn/ui (Base UI, `base-nova` style) + Recharts.
